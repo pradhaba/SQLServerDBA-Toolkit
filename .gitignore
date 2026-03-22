@@ -1,0 +1,16 @@
+# Terraform
+*.tfvars
+!*.tfvars.example
+*.tfstate
+*.tfstate.backup
+.terraform/
+.terraform.lock.hcl
+tfplan
+
+# Ansible
+*.vault.yml
+*.retry
+inventory/hosts_generated.yml
+
+# OS
+.DS_Store
