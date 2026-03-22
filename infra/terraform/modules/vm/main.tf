@@ -8,7 +8,7 @@ variable "data_disk_gb"  {
 }
 variable "vhd_path"      { type = string }
 variable "data_vhd_path" { 
-  type = string;
+  type = string
   default = "" 
 }
 variable "iso_path"      { type = string }
