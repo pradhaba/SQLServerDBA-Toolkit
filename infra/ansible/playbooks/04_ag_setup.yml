@@ -1,0 +1,193 @@
+---
+# Run against primary first, then secondary joins
+- name: Configure Always On Availability Group
+  hosts: sql_servers
+  vars_files:
+    - ../group_vars/all.yml
+    - ../group_vars/vault.yml
+  gather_facts: false
+  serial: 1   # run one host at a time — primary must finish before secondary
+
+  tasks:
+    - name: Enable Always On feature
+      ansible.windows.win_powershell:
+        script: |
+          Import-Module SqlServer
+          Enable-SqlAlwaysOn `
+            -ServerInstance "{{ inventory_hostname }}" `
+            -Force
+          Write-Output "Always On enabled on {{ inventory_hostname }}"
+
+    - name: Restart SQL Server to activate Always On
+      ansible.windows.win_service:
+        name: MSSQLSERVER
+        state: restarted
+      register: sql_restart
+
+    - name: Wait for SQL to come back up
+      ansible.windows.win_wait_for:
+        port: 1433
+        timeout: 120
+
+    - name: Create database mirroring endpoint
+      ansible.windows.win_powershell:
+        script: |
+          $sql = @"
+          IF NOT EXISTS (
+            SELECT 1 FROM sys.endpoints
+            WHERE type_desc = 'DATABASE_MIRRORING'
+          )
+          BEGIN
+            CREATE ENDPOINT [Hadr_endpoint]
+              STATE = STARTED
+              AS TCP (LISTENER_PORT = {{ ag_endpoint_port }})
+              FOR DATABASE_MIRRORING (
+                ROLE = ALL,
+                AUTHENTICATION = WINDOWS NEGOTIATE,
+                ENCRYPTION = REQUIRED ALGORITHM AES
+              )
+          END
+          "@
+          Invoke-Sqlcmd -Query $sql -TrustServerCertificate
+          Write-Output "Endpoint created on {{ inventory_hostname }}"
+
+    - name: Grant endpoint connect to service account
+      ansible.windows.win_powershell:
+        script: |
+          $sql = @"
+          IF NOT EXISTS (
+            SELECT 1 FROM sys.server_permissions sp
+            JOIN sys.server_principals p ON sp.grantee_principal_id = p.principal_id
+            WHERE p.name = '{{ sql_svc_account }}'
+          )
+          BEGIN
+            GRANT CONNECT ON ENDPOINT::Hadr_endpoint TO [{{ sql_svc_account }}]
+          END
+          "@
+          Invoke-Sqlcmd -Query $sql -TrustServerCertificate
+
+# Create the AG — primary only
+- name: Create Availability Group on primary
+  hosts: sql_primary
+  vars_files:
+    - ../group_vars/all.yml
+    - ../group_vars/vault.yml
+  gather_facts: false
+
+  tasks:
+    - name: Create demo database for AG
+      ansible.windows.win_powershell:
+        script: |
+          $sql = @"
+          IF NOT EXISTS (SELECT 1 FROM sys.databases WHERE name = 'ManufacturingDemo')
+          BEGIN
+            CREATE DATABASE ManufacturingDemo
+            ALTER DATABASE ManufacturingDemo SET RECOVERY FULL
+          END
+          "@
+          Invoke-Sqlcmd -Query $sql -TrustServerCertificate
+          -- Take a full backup so we can seed secondary
+          BACKUP DATABASE ManufacturingDemo
+            TO DISK = N'{{ sql_backup_path }}\ManufacturingDemo_seed.bak'
+            WITH FORMAT, INIT, COMPRESSION
+
+    - name: Create Availability Group
+      ansible.windows.win_powershell:
+        script: |
+          $sql = @"
+          IF NOT EXISTS (
+            SELECT 1 FROM sys.availability_groups WHERE name = N'{{ ag_name }}'
+          )
+          BEGIN
+            CREATE AVAILABILITY GROUP [{{ ag_name }}]
+            WITH (
+              AUTOMATED_BACKUP_PREFERENCE = SECONDARY,
+              DB_FAILOVER = ON,
+              FAILURE_CONDITION_LEVEL = 3
+            )
+            FOR DATABASE [ManufacturingDemo]
+            REPLICA ON
+              N'{{ ag_primary }}' WITH (
+                ENDPOINT_URL     = N'TCP://{{ ag_primary }}:{{ ag_endpoint_port }}',
+                AVAILABILITY_MODE = SYNCHRONOUS_COMMIT,
+                FAILOVER_MODE    = AUTOMATIC,
+                SEEDING_MODE     = AUTOMATIC,
+                SECONDARY_ROLE   (ALLOW_CONNECTIONS = ALL)
+              ),
+              N'{{ ag_secondary }}' WITH (
+                ENDPOINT_URL     = N'TCP://{{ ag_secondary }}:{{ ag_endpoint_port }}',
+                AVAILABILITY_MODE = SYNCHRONOUS_COMMIT,
+                FAILOVER_MODE    = AUTOMATIC,
+                SEEDING_MODE     = AUTOMATIC,
+                SECONDARY_ROLE   (ALLOW_CONNECTIONS = ALL)
+              )
+            LISTENER N'{{ ag_listener_name }}' (
+              WITH IP (
+                (N'{{ ag_listener_ip }}', N'255.255.255.0')
+              ),
+              PORT = {{ ag_listener_port }}
+            )
+          END
+          "@
+          Invoke-Sqlcmd -Query $sql -TrustServerCertificate
+          Write-Output "AG {{ ag_name }} created"
+
+    - name: Grant AG seeding permission on primary
+      ansible.windows.win_powershell:
+        script: |
+          Invoke-Sqlcmd -Query "ALTER AVAILABILITY GROUP [{{ ag_name }}] GRANT CREATE ANY DATABASE" `
+            -TrustServerCertificate
+
+# Join secondary replica
+- name: Join sql-02 to Availability Group
+  hosts: sql_secondary
+  vars_files:
+    - ../group_vars/all.yml
+    - ../group_vars/vault.yml
+  gather_facts: false
+
+  tasks:
+    - name: Join secondary to AG
+      ansible.windows.win_powershell:
+        script: |
+          Invoke-Sqlcmd -Query "ALTER AVAILABILITY GROUP [{{ ag_name }}] JOIN" `
+            -TrustServerCertificate
+          Invoke-Sqlcmd -Query "ALTER AVAILABILITY GROUP [{{ ag_name }}] GRANT CREATE ANY DATABASE" `
+            -TrustServerCertificate
+          Write-Output "{{ ag_secondary }} joined AG {{ ag_name }}"
+
+    - name: Wait for AG sync to complete
+      ansible.windows.win_powershell:
+        script: |
+          $timeout = 300
+          $elapsed = 0
+          do {
+            $state = Invoke-Sqlcmd -Query @"
+              SELECT synchronization_state_desc
+              FROM sys.dm_hadr_database_replica_states
+              WHERE is_local = 1
+"@ -TrustServerCertificate
+            Start-Sleep -Seconds 10
+            $elapsed += 10
+          } while ($state.synchronization_state_desc -ne 'SYNCHRONIZED' -and $elapsed -lt $timeout)
+          Write-Output "Sync state: $($state.synchronization_state_desc)"
+
+    - name: Verify AG health
+      ansible.windows.win_powershell:
+        script: |
+          Invoke-Sqlcmd -Query @"
+            SELECT
+              ag.name             AS ag_name,
+              ar.replica_server_name,
+              ars.role_desc,
+              ars.operational_state_desc,
+              ars.synchronization_health_desc
+            FROM sys.availability_groups ag
+            JOIN sys.availability_replicas ar ON ag.group_id = ar.group_id
+            JOIN sys.dm_hadr_availability_replica_states ars ON ar.replica_id = ars.replica_id
+"@ -TrustServerCertificate | Format-Table -AutoSize
+      register: ag_health
+
+    - name: Show AG health
+      debug:
+        var: ag_health.output

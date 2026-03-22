@@ -1,0 +1,63 @@
+---
+- name: Join sql-01, sql-02, witness-01 to domain
+  hosts: sql_servers:witness
+  vars_files:
+    - ../group_vars/all.yml
+    - ../group_vars/vault.yml
+  gather_facts: false
+  # Use local admin before domain join
+  vars:
+    ansible_user: Administrator
+    ansible_password: "{{ vault_windows_admin_password }}"
+    ansible_winrm_transport: basic
+
+  tasks:
+    - name: Wait for WinRM
+      wait_for_connection:
+        timeout: 300
+
+    - name: Set static IP — sql-01
+      ansible.windows.win_powershell:
+        script: |
+          $adapter = Get-NetAdapter | Where-Object { $_.Status -eq "Up" } | Select-Object -First 1
+          New-NetIPAddress -InterfaceAlias $adapter.Name `
+            -IPAddress {{ ansible_host }} `
+            -PrefixLength 24 `
+            -DefaultGateway {{ gateway }}
+          Set-DnsClientServerAddress -InterfaceAlias $adapter.Name `
+            -ServerAddresses {{ dns_server }},8.8.8.8
+
+    - name: Set hostname to match inventory name
+      ansible.windows.win_hostname:
+        name: "{{ inventory_hostname }}"
+      register: hostname_result
+
+    - name: Reboot after hostname change
+      ansible.windows.win_reboot:
+        reboot_timeout: 300
+      when: hostname_result.reboot_required
+
+    - name: Join domain
+      microsoft.ad.membership:
+        dns_domain_name: "{{ domain_name }}"
+        domain_admin_user: "{{ domain_netbios }}\\Administrator"
+        domain_admin_password: "{{ vault_windows_admin_password }}"
+        state: domain
+        hostname: "{{ inventory_hostname }}"
+      register: domain_join
+
+    - name: Reboot after domain join
+      ansible.windows.win_reboot:
+        reboot_timeout: 300
+        post_reboot_delay: 30
+      when: domain_join.reboot_required
+
+    - name: Verify domain membership
+      ansible.windows.win_powershell:
+        script: |
+          (Get-WmiObject Win32_ComputerSystem).Domain
+      register: domain_check
+
+    - name: Show domain membership
+      debug:
+        msg: "{{ inventory_hostname }} joined to {{ domain_check.output[0] }}"

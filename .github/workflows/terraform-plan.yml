@@ -1,0 +1,52 @@
+name: Terraform plan
+
+on:
+  pull_request:
+    paths:
+      - "infra/terraform/**"
+  push:
+    branches:
+      - main
+    paths:
+      - "infra/terraform/**"
+
+jobs:
+  terraform-plan:
+    name: Validate and plan
+    runs-on: [self-hosted, rhel9, hyperv]   # targets your RHEL 9 VM runner
+
+    defaults:
+      run:
+        working-directory: infra/terraform
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Terraform format check
+        run: terraform fmt -check -recursive
+
+      - name: Terraform init
+        run: terraform init
+        env:
+          TF_VAR_hyperv_host:     ${{ secrets.HYPERV_HOST }}
+          TF_VAR_hyperv_user:     ${{ secrets.HYPERV_USER }}
+          TF_VAR_hyperv_password: ${{ secrets.HYPERV_PASSWORD }}
+
+      - name: Terraform validate
+        run: terraform validate
+
+      - name: Terraform plan
+        run: |
+          terraform plan \
+            -out=tfplan \
+            -var="hyperv_host=${{ secrets.HYPERV_HOST }}" \
+            -var="hyperv_user=${{ secrets.HYPERV_USER }}" \
+            -var="hyperv_password=${{ secrets.HYPERV_PASSWORD }}"
+
+      - name: Save plan as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tfplan-${{ github.sha }}
+          path: infra/terraform/tfplan
+          retention-days: 7

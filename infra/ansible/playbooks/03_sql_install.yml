@@ -1,0 +1,121 @@
+---
+- name: Install SQL Server 2022 on sql-01 and sql-02
+  hosts: sql_servers
+  vars_files:
+    - ../group_vars/all.yml
+    - ../group_vars/vault.yml
+  gather_facts: false
+
+  tasks:
+    - name: Wait for WinRM
+      wait_for_connection:
+        timeout: 300
+
+    - name: Create SQL setup directories
+      ansible.windows.win_file:
+        path: "{{ item }}"
+        state: directory
+      loop:
+        - C:\SQLSetup
+        - "{{ sql_data_path }}"
+        - "{{ sql_log_path }}"
+        - "{{ sql_backup_path }}"
+
+    - name: Format and mount data disk as D drive
+      ansible.windows.win_powershell:
+        script: |
+          $disk = Get-Disk | Where-Object { $_.PartitionStyle -eq 'RAW' } | Select-Object -First 1
+          if ($disk) {
+            Initialize-Disk -Number $disk.Number -PartitionStyle GPT -PassThru |
+            New-Partition -DriveLetter D -UseMaximumSize |
+            Format-Volume -FileSystem NTFS -NewFileSystemLabel "SQLData" -Confirm:$false
+            Write-Output "Data disk formatted as D:"
+          } else {
+            Write-Output "No raw disk found — already formatted or missing"
+          }
+
+    - name: Copy SQL Server 2022 ISO to VM
+      ansible.windows.win_copy:
+        src: "{{ sql_iso_path }}"
+        dest: "C:\\SQLSetup\\SQL2022.iso"
+        remote_src: false
+
+    - name: Mount SQL ISO
+      ansible.windows.win_powershell:
+        script: |
+          $img = Mount-DiskImage -ImagePath C:\SQLSetup\SQL2022.iso -PassThru
+          $drive = ($img | Get-Volume).DriveLetter
+          Write-Output $drive
+      register: sql_drive_letter
+
+    - name: Run SQL Server silent install
+      ansible.windows.win_powershell:
+        script: |
+          $drive = "{{ sql_drive_letter.output[0] }}"
+          $args = @(
+            "/Q",
+            "/ACTION=Install",
+            "/FEATURES=SQLENGINE,REPLICATION,FULLTEXT,CONN",
+            "/INSTANCENAME={{ sql_instance }}",
+            "/SQLSVCACCOUNT={{ sql_svc_account }}",
+            "/SQLSVCPASSWORD={{ vault_sql_svc_password }}",
+            "/AGTSVCACCOUNT={{ sql_agent_account }}",
+            "/AGTSVCPASSWORD={{ vault_sql_agent_password }}",
+            "/AGTSVCSTARTUPTYPE=Automatic",
+            "/SQLSYSADMINACCOUNTS={{ domain_netbios }}\Domain Admins",
+            "/SAPWD={{ vault_sql_sa_password }}",
+            "/SECURITYMODE=SQL",
+            "/SQLBACKUPDIR={{ sql_backup_path }}",
+            "/SQLUSERDBDIR={{ sql_data_path }}",
+            "/SQLUSERDBLOGDIR={{ sql_log_path }}",
+            "/SQLTEMPDBDIR={{ sql_data_path }}",
+            "/TCPENABLED=1",
+            "/NPENABLED=0",
+            "/BROWSERSVCSTARTUPTYPE=Disabled",
+            "/IACCEPTSQLSERVERLICENSETERMS"
+          )
+          $result = Start-Process -FilePath "${drive}:\setup.exe" `
+            -ArgumentList $args -Wait -PassThru
+          if ($result.ExitCode -ne 0) {
+            throw "SQL setup failed with exit code $($result.ExitCode)"
+          }
+          Write-Output "SQL Server install completed successfully"
+        timeout: 1800   # 30 min timeout for SQL install
+
+    - name: Dismount SQL ISO
+      ansible.windows.win_powershell:
+        script: |
+          Dismount-DiskImage -ImagePath C:\SQLSetup\SQL2022.iso
+
+    - name: Open SQL Server firewall ports
+      ansible.windows.win_firewall_rule:
+        name: "{{ item.name }}"
+        localport: "{{ item.port }}"
+        action: allow
+        direction: in
+        protocol: tcp
+        state: present
+        enabled: true
+      loop:
+        - { name: "SQL Server",          port: "1433" }
+        - { name: "SQL AG Endpoint",     port: "5022" }
+        - { name: "SQL Browser",         port: "1434" }
+
+    - name: Enable SQL Server Agent auto-start
+      ansible.windows.win_service:
+        name: SQLSERVERAGENT
+        start_mode: auto
+        state: started
+
+    - name: Verify SQL Server is running
+      ansible.windows.win_powershell:
+        script: |
+          $svc = Get-Service -Name MSSQLSERVER
+          Write-Output "SQL Service: $($svc.Status)"
+          $result = Invoke-Sqlcmd -Query "SELECT @@VERSION AS Version" -TrustServerCertificate
+          Write-Output $result.Version.Substring(0,80)
+      register: sql_verify
+
+    - name: Show SQL Server version
+      debug:
+        var: sql_verify.output

@@ -1,0 +1,40 @@
+name: Ansible lint
+
+on:
+  pull_request:
+    paths:
+      - "infra/ansible/**"
+  push:
+    branches:
+      - main
+    paths:
+      - "infra/ansible/**"
+
+jobs:
+  ansible-lint:
+    name: Lint playbooks
+    runs-on: [self-hosted, rhel9, hyperv]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install ansible-lint
+        run: pip3 install ansible-lint --quiet
+
+      - name: Install required collections
+        run: |
+          ansible-galaxy collection install ansible.windows
+          ansible-galaxy collection install community.windows
+          ansible-galaxy collection install microsoft.ad
+        working-directory: infra/ansible
+
+      - name: Run ansible-lint
+        run: ansible-lint playbooks/
+        working-directory: infra/ansible
+
+      - name: Check inventory syntax
+        run: |
+          ansible-inventory -i inventory/hosts.yml --list > /dev/null
+          echo "Inventory syntax OK"
+        working-directory: infra/ansible

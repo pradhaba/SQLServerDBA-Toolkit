@@ -1,0 +1,88 @@
+---
+- name: Promote dc-01 to Active Directory domain controller
+  hosts: domain_controllers
+  vars_files:
+    - ../group_vars/all.yml
+    - ../group_vars/vault.yml
+  gather_facts: false
+
+  tasks:
+    - name: Wait for WinRM to be available
+      wait_for_connection:
+        timeout: 300
+
+    - name: Set static IP on dc-01
+      ansible.windows.win_powershell:
+        script: |
+          $adapter = Get-NetAdapter | Where-Object { $_.Status -eq "Up" } | Select-Object -First 1
+          New-NetIPAddress -InterfaceAlias $adapter.Name `
+            -IPAddress 192.168.10.10 `
+            -PrefixLength 24 `
+            -DefaultGateway {{ gateway }}
+          Set-DnsClientServerAddress -InterfaceAlias $adapter.Name `
+            -ServerAddresses 127.0.0.1,8.8.8.8
+
+    - name: Set hostname to dc-01
+      ansible.windows.win_hostname:
+        name: dc-01
+      register: hostname_result
+
+    - name: Reboot after hostname change
+      ansible.windows.win_reboot:
+        reboot_timeout: 300
+      when: hostname_result.reboot_required
+
+    - name: Install AD DS and DNS roles
+      ansible.windows.win_feature:
+        name:
+          - AD-Domain-Services
+          - DNS
+          - RSAT-AD-Tools
+          - RSAT-DNS-Server
+        include_management_tools: true
+        state: present
+      register: ad_feature
+
+    - name: Reboot after feature install if required
+      ansible.windows.win_reboot:
+        reboot_timeout: 300
+      when: ad_feature.reboot_required
+
+    - name: Create new AD forest and promote DC
+      microsoft.ad.domain:
+        dns_domain_name: "{{ domain_name }}"
+        domain_netbios_name: "{{ domain_netbios }}"
+        safe_mode_password: "{{ dsrm_password }}"
+        install_dns: true
+        create_dns_delegation: false
+      register: domain_result
+
+    - name: Reboot after domain promotion
+      ansible.windows.win_reboot:
+        reboot_timeout: 600
+        post_reboot_delay: 60
+      when: domain_result.reboot_required
+
+    - name: Create SQL service accounts in AD
+      microsoft.ad.user:
+        name: "{{ item.name }}"
+        firstname: "{{ item.name }}"
+        password: "{{ item.password }}"
+        password_never_expires: true
+        state: present
+        path: "OU=ServiceAccounts,DC=sqllab,DC=local"
+      loop:
+        - { name: sqlsvc,   password: "{{ vault_sql_svc_password }}" }
+        - { name: sqlagent, password: "{{ vault_sql_agent_password }}" }
+      ignore_errors: true   # OU may not exist yet on first run
+
+    - name: Verify domain controller is operational
+      ansible.windows.win_powershell:
+        script: |
+          Import-Module ActiveDirectory
+          Get-ADDomain | Select-Object DNSRoot, NetBIOSName, DomainMode
+      register: ad_check
+
+    - name: Show AD domain info
+      debug:
+        var: ad_check.output

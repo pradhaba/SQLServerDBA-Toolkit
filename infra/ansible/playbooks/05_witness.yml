@@ -1,0 +1,68 @@
+---
+- name: Configure file share witness on witness-01
+  hosts: witness
+  vars_files:
+    - ../group_vars/all.yml
+    - ../group_vars/vault.yml
+  gather_facts: false
+
+  tasks:
+    - name: Wait for WinRM
+      wait_for_connection:
+        timeout: 300
+
+    - name: Create witness share directory
+      ansible.windows.win_file:
+        path: "{{ witness_share_path }}"
+        state: directory
+
+    - name: Create SMB file share
+      ansible.windows.win_share:
+        name: "{{ witness_share_name }}"
+        path: "{{ witness_share_path }}"
+        full: "{{ domain_netbios }}\\Domain Computers"
+        state: present
+
+    - name: Set NTFS permissions on witness share
+      ansible.windows.win_acl:
+        path: "{{ witness_share_path }}"
+        user: "{{ domain_netbios }}\\Domain Computers"
+        rights: FullControl
+        type: allow
+        state: present
+
+    - name: Open firewall for SMB
+      ansible.windows.win_firewall_rule:
+        name: "SMB Witness"
+        localport: "445"
+        action: allow
+        direction: in
+        protocol: tcp
+        state: present
+        enabled: true
+
+- name: Set cluster quorum to file share witness
+  hosts: sql_primary
+  vars_files:
+    - ../group_vars/all.yml
+    - ../group_vars/vault.yml
+  gather_facts: false
+
+  tasks:
+    - name: Configure quorum to use file share witness
+      ansible.windows.win_powershell:
+        script: |
+          $sharePath = "\\\\{{ witness_ip }}\\{{ witness_share_name }}"
+          Set-ClusterQuorum -FileShareWitness $sharePath
+          Write-Output "Quorum set to file share witness: $sharePath"
+      register: quorum_result
+
+    - name: Verify quorum configuration
+      ansible.windows.win_powershell:
+        script: |
+          Get-ClusterQuorum | Format-List *
+      register: quorum_check
+
+    - name: Show quorum config
+      debug:
+        var: quorum_check.output
