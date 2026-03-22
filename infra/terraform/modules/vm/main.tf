@@ -2,9 +2,15 @@ variable "name"          { type = string }
 variable "cpus"          { type = number }
 variable "memory_mb"     { type = number }
 variable "os_disk_gb"    { type = number }
-variable "data_disk_gb"  { type = number; default = 0 }
+variable "data_disk_gb"  {
+   type = number
+   default = 0 
+}
 variable "vhd_path"      { type = string }
-variable "data_vhd_path" { type = string; default = "" }
+variable "data_vhd_path" { 
+  type = string;
+  default = "" 
+}
 variable "iso_path"      { type = string }
 variable "switch_name"   { type = string }
 variable "mac_address"   { type = string }
