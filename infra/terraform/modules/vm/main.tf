@@ -1,12 +1,3 @@
-terraform {
-  required_version = ">= 1.6.0"
-  required_providers {
-    hyperv = {
-      source  = "taliesins/hyperv"
-      version = "~> 1.2"
-    }
-  }
-
 variable "name"          { type = string }
 variable "cpus"          { type = number }
 variable "memory_mb"     { type = number }
