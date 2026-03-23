@@ -43,7 +43,7 @@ module "dc01" {
   name         = "dc-01"
   cpus         = var.dc_cpus
   memory_mb    = var.dc_memory_mb
-  os_disk_gb   = 60
+  os_disk_gb   = 15
   vhd_path     = "${var.vhd_base_path}\\dc-01-os.vhdx"
   iso_path     = var.ws2022_iso_path
   switch_name  = hyperv_network_switch.lab_switch.name
@@ -56,8 +56,8 @@ module "sql01" {
   name          = "sql-01"
   cpus          = var.sql_cpus
   memory_mb     = var.sql_memory_mb
-  os_disk_gb    = 80
-  data_disk_gb  = 50       # dedicated data/log disk
+  os_disk_gb    = 15
+  data_disk_gb  = 15       # dedicated data/log disk
   vhd_path      = "${var.vhd_base_path}\\sql-01-os.vhdx"
   data_vhd_path = "${var.vhd_base_path}\\sql-01-data.vhdx"
   iso_path      = var.ws2022_iso_path
@@ -71,8 +71,8 @@ module "sql02" {
   name          = "sql-02"
   cpus          = var.sql_cpus
   memory_mb     = var.sql_memory_mb
-  os_disk_gb    = 80
-  data_disk_gb  = 50
+  os_disk_gb    = 15
+  data_disk_gb  = 15
   vhd_path      = "${var.vhd_base_path}\\sql-02-os.vhdx"
   data_vhd_path = "${var.vhd_base_path}\\sql-02-data.vhdx"
   iso_path      = var.ws2022_iso_path
@@ -86,7 +86,7 @@ module "witness01" {
   name        = "witness-01"
   cpus        = var.witness_cpus
   memory_mb   = var.witness_memory_mb
-  os_disk_gb  = 40
+  os_disk_gb  = 15
   vhd_path    = "${var.vhd_base_path}\\witness-01-os.vhdx"
   iso_path    = var.ws2022_iso_path
   switch_name = hyperv_network_switch.lab_switch.name
