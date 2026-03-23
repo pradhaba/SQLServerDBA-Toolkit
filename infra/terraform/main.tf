@@ -17,10 +17,10 @@ provider "hyperv" {
   user     = var.hyperv_user
   password = var.hyperv_password
   host     = var.hyperv_host
-  port     = 5986
-  https    = true
+  port     = 5985
+  https    = false
   insecure = true   # self-signed cert on host WinRM
-  use_ntlm = true
+  use_ntlm = false  # Set to false to use Basic authentication
   timeout  = "60s"
 }
 
