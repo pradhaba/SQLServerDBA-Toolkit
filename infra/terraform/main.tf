@@ -24,6 +24,12 @@ provider "hyperv" {
   timeout  = "60s"
 }
 
+
+import {
+  to = hyperv_network_switch.lab_switch
+  id = "SQLLabSwitch"
+}
+
 # ── Internal virtual switch (matches your static network) ──────────────────
 resource "hyperv_network_switch" "lab_switch" {
   name                              = "SQLLabSwitch"
