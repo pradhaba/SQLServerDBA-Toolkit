@@ -13,8 +13,7 @@ terraform {
   }
 }
 
-provider "hyperv" {
-  source  = "taliesins/hyperv"
+provider "taliesins/hyperv" {
   user     = var.hyperv_user
   password = var.hyperv_password
   host     = var.hyperv_host
