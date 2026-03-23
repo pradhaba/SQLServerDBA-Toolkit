@@ -2,7 +2,7 @@
 variable "hyperv_host" {
   description = "IP of the Windows 11 Hyper-V host"
   type        = string
-  default     = "192.168.10.1"
+  default     = "192.168.100.1"
 }
 
 variable "hyperv_user" {
