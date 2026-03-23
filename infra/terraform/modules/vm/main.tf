@@ -99,3 +99,8 @@ resource "hyperv_machine_instance" "vm" {
 output "vm_name" {
   value = hyperv_machine_instance.vm.name
 }
+
+import {
+  to = hyperv_network_switch.lab_switch
+  id = "SQLLabSwitch"
+}
