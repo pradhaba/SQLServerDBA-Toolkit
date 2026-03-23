@@ -26,7 +26,6 @@ provider "hyperv" {
 
 # ── Internal virtual switch (matches your static network) ──────────────────
 resource "hyperv_network_switch" "lab_switch" {
-  source  = "taliesins/hyperv"
   name                              = "SQLLabSwitch"
   switch_type                       = "Internal"
   allow_management_os               = true
