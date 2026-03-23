@@ -50,7 +50,7 @@ variable "sql_cpus" {
 
 variable "sql_memory_mb" {
   type    = number
-  default = 8192
+  default = 4096
 }
 
 # ── Witness sizing ───────────────────────────────────────────────────────────
