@@ -27,7 +27,8 @@ variable "vhd_base_path" {
 variable "ws2022_iso_path" {
   description = "Windows path to the Windows Server 2022 ISO"
   type        = string
-  default     = "C:\\ISOs\\WS2022_EVAL.iso"
+  default     = "C:\\Users\\'Bapuji Pradhan'\\Downloads\\Image_Folder\\SERVER_EVAL_x64FRE_en-us.iso"
+  #default     = "C:\\ISOs\\WS2022_EVAL.iso"
 }
 
 # ── Domain Controller sizing ─────────────────────────────────────────────────
