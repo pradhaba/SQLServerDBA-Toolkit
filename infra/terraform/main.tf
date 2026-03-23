@@ -29,7 +29,6 @@ resource "hyperv_network_switch" "lab_switch" {
   name                              = "SQLLabSwitch"
   switch_type                       = "Internal"
   allow_management_os               = true
-  default_flow_minimum_bandwidth_mbps = 0
 }
 
 # ── Domain Controller ───────────────────────────────────────────────────────
