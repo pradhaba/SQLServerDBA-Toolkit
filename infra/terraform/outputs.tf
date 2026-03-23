@@ -21,9 +21,9 @@ output "lab_switch_name" {
 # Summary block — useful for README / Ansible inventory generation
 output "vm_summary" {
   value = {
-    dc01      = { name = module.dc01.vm_name,      ip = "192.168.10.10" }
-    sql01     = { name = module.sql01.vm_name,     ip = "192.168.10.21" }
-    sql02     = { name = module.sql02.vm_name,     ip = "192.168.10.22" }
-    witness01 = { name = module.witness01.vm_name, ip = "192.168.10.30" }
+    dc01      = { name = module.dc01.vm_name,      ip = "192.168.100.10" }
+    sql01     = { name = module.sql01.vm_name,     ip = "192.168.100.11" }
+    sql02     = { name = module.sql02.vm_name,     ip = "192.168.100.12" }
+    witness01 = { name = module.witness01.vm_name, ip = "192.168.100.13" }
   }
 }

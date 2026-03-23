@@ -47,7 +47,7 @@ module "dc01" {
   vhd_path     = "${var.vhd_base_path}\\dc-01-os.vhdx"
   iso_path     = var.ws2022_iso_path
   switch_name  = hyperv_network_switch.lab_switch.name
-  mac_address  = "00:15:5D:01:0A:0A"   # maps to 192.168.10.10
+  mac_address  = "00:15:5D:01:0A:0A"   # maps to 192.168.100.10
 }
 
 # ── SQL Server Primary ──────────────────────────────────────────────────────
@@ -62,7 +62,7 @@ module "sql01" {
   data_vhd_path = "${var.vhd_base_path}\\sql-01-data.vhdx"
   iso_path      = var.ws2022_iso_path
   switch_name   = hyperv_network_switch.lab_switch.name
-  mac_address   = "00:15:5D:01:0A:15"  # maps to 192.168.10.21
+  mac_address   = "00:15:5D:01:0A:15"  # maps to 192.168.100.11
 }
 
 # ── SQL Server Secondary ────────────────────────────────────────────────────
@@ -77,7 +77,7 @@ module "sql02" {
   data_vhd_path = "${var.vhd_base_path}\\sql-02-data.vhdx"
   iso_path      = var.ws2022_iso_path
   switch_name   = hyperv_network_switch.lab_switch.name
-  mac_address   = "00:15:5D:01:0A:16"  # maps to 192.168.10.22
+  mac_address   = "00:15:5D:01:0A:16"  # maps to 192.168.100.12
 }
 
 # ── File Share Witness ──────────────────────────────────────────────────────
@@ -90,5 +90,5 @@ module "witness01" {
   vhd_path    = "${var.vhd_base_path}\\witness-01-os.vhdx"
   iso_path    = var.ws2022_iso_path
   switch_name = hyperv_network_switch.lab_switch.name
-  mac_address = "00:15:5D:01:0A:1E"   # maps to 192.168.10.30
+  mac_address = "00:15:5D:01:0A:1E"   # maps to 192.168.100.13
 }
