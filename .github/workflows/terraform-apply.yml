@@ -17,6 +17,11 @@ jobs:
     defaults:
       run:
         working-directory: infra/terraform
+    
+    env:
+      TF_VAR_hyperv_host:     ${{ secrets.HYPERV_HOST }}
+      TF_VAR_hyperv_user:     ${{ secrets.HYPERV_USER }}
+      TF_VAR_hyperv_password: ${{ secrets.HYPERV_PASSWORD }}
 
     steps:
       - name: Checkout
@@ -24,15 +29,12 @@ jobs:
 
       - name: Terraform init
         run: terraform init
-        env:
-          TF_VAR_hyperv_password: ${{ secrets.HYPERV_PASSWORD }}
+
+      - name: Terraform plan        # ✅ Always plan before apply — shows what will change
+        run: terraform plan
 
       - name: Terraform apply
-        run: |
-          terraform apply -auto-approve \
-            -var="hyperv_host=${{ secrets.HYPERV_HOST }}" \
-            -var="hyperv_user=${{ secrets.HYPERV_USER }}" \
-            -var="hyperv_password=${{ secrets.HYPERV_PASSWORD }}"
+        run: terraform apply -auto-approve
 
       - name: Show outputs
         run: terraform output vm_summary
