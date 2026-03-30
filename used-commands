@@ -1,0 +1,13 @@
+# Enable Basic auth and allow unencrypted
+winrm set winrm/config/service/auth '@{Basic="true"}'
+winrm set winrm/config/service '@{AllowUnencrypted="true"}'
+# Verify
+winrm get winrm/config/service/auth
+# Test connectivity with win_ping
+ansible server1 -i inventory/hosts.yml -m win_ping \
+  -e "ansible_user=Administrator" \
+  -e "ansible_password=YourPasswordHere \
+  -e "ansible_connection=winrm" \
+  -e "ansible_winrm_transport=ntlm" \
+  -e "ansible_winrm_server_cert_validation=ignore" \
+  -vvv 2>&1 | tail -10

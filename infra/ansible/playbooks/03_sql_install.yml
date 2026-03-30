@@ -16,7 +16,7 @@
         path: "{{ item }}"
         state: directory
       loop:
-        - C:\SQLSetup
+        - E:\SQLSetup
         - "{{ sql_data_path }}"
         - "{{ sql_log_path }}"
         - "{{ sql_backup_path }}"
@@ -43,7 +43,7 @@
     - name: Mount SQL ISO
       ansible.windows.win_powershell:
         script: |
-          $img = Mount-DiskImage -ImagePath C:\SQLSetup\SQL2022.iso -PassThru
+          $img = Mount-DiskImage -ImagePath E:\SQLSetup\SQL2022.iso -PassThru
           $drive = ($img | Get-Volume).DriveLetter
           Write-Output $drive
       register: sql_drive_letter
@@ -85,7 +85,7 @@
     - name: Dismount SQL ISO
       ansible.windows.win_powershell:
         script: |
-          Dismount-DiskImage -ImagePath C:\SQLSetup\SQL2022.iso
+          Dismount-DiskImage -ImagePath E:\SQLSetup\SQL2022.iso
 
     - name: Open SQL Server firewall ports
       community.windows.win_firewall_rule:
