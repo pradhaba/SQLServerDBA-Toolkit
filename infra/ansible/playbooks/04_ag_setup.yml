@@ -162,16 +162,16 @@
           $timeout = 300
           $elapsed = 0
           do {
-            $state = Invoke-Sqlcmd -Query @"
+            $state = Invoke-Sqlcmd -Query @'
               SELECT synchronization_state_desc
               FROM sys.dm_hadr_database_replica_states
               WHERE is_local = 1
-'@ -TrustServerCertificate
-            Start-Sleep -Seconds 10
-            $elapsed += 10
-          } while ($state.synchronization_state_desc -ne 'SYNCHRONIZED' -and $elapsed -lt $timeout)
-          Write-Output "Sync state: $($state.synchronization_state_desc)"
-
+    '@ -TrustServerCertificate
+                Start-Sleep -Seconds 10
+                $elapsed += 10
+              } while ($state.synchronization_state_desc -ne 'SYNCHRONIZED' -and $elapsed -lt $timeout)
+              Write-Output "Sync state: $($state.synchronization_state_desc)"
+    
     - name: Verify AG health
       ansible.windows.win_powershell:
         script: |
@@ -185,9 +185,9 @@
             FROM sys.availability_groups ag
             JOIN sys.availability_replicas ar ON ag.group_id = ar.group_id
             JOIN sys.dm_hadr_availability_replica_states ars ON ar.replica_id = ars.replica_id
-'@ -TrustServerCertificate | Format-Table -AutoSize
-      register: ag_health
-
+    '@ -TrustServerCertificate | Format-Table -AutoSize
+          register: ag_health
+    
     - name: Show AG health
       debug:
         var: ag_health.output
