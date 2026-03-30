@@ -16,7 +16,7 @@
         script: |
           $adapter = Get-NetAdapter | Where-Object { $_.Status -eq "Up" } | Select-Object -First 1
           New-NetIPAddress -InterfaceAlias $adapter.Name `
-            -IPAddress 192.168.10.10 `
+            -IPAddress 192.168.100.10 `
             -PrefixLength 24 `
             -DefaultGateway {{ gateway }}
           Set-DnsClientServerAddress -InterfaceAlias $adapter.Name `
