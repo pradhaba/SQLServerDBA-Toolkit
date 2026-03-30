@@ -32,7 +32,7 @@
         state: present
 
     - name: Open firewall for SMB
-      ansible.windows.win_firewall_rule:
+      community.windows.win_firewall_rule:
         name: "SMB Witness"
         localport: "445"
         action: allow
