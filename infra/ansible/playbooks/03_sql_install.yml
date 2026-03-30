@@ -88,7 +88,7 @@
           Dismount-DiskImage -ImagePath C:\SQLSetup\SQL2022.iso
 
     - name: Open SQL Server firewall ports
-      ansible.windows.win_firewall_rule:
+      community.windows.win_firewall_rule:
         name: "{{ item.name }}"
         localport: "{{ item.port }}"
         action: allow
