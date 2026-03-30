@@ -7,10 +7,10 @@ dsrm_password:      "{{ vault_dsrm_password }}"
 windows_admin_password: "{{ vault_windows_admin_password }}"
 
 # ── Network ───────────────────────────────────────────────────────────────────
-dns_server:         "192.168.10.10"   # dc-01
-gateway:            "192.168.10.1"
+dns_server:         "192.168.100.10"   # dc
+gateway:            "192.168.100.1"
 subnet_mask:        "255.255.255.0"
-domain_controller_ip: "192.168.10.10"
+domain_controller_ip: "192.168.100.13"
 
 # ── SQL Server ────────────────────────────────────────────────────────────────
 sql_instance:        "MSSQLSERVER"
@@ -20,10 +20,10 @@ sql_svc_account:     "SQLLAB\\sqlsvc"
 sql_svc_password:    "{{ vault_sql_svc_password }}"
 sql_agent_account:   "SQLLAB\\sqlagent"
 sql_agent_password:  "{{ vault_sql_agent_password }}"
-sql_data_path:       "D:\\SQLData"
-sql_log_path:        "D:\\SQLLogs"
-sql_backup_path:     "D:\\SQLBackups"
-sql_iso_path:        "C:\\SQLSetup\\SQL2022.iso"
+sql_data_path:       "E:\\SQLData"
+sql_log_path:        "E:\\SQLLogs"
+sql_backup_path:     "E:\\SQLBackups"
+sql_iso_path:        "E:\\SQLSetup\\SQL2022.iso"
 
 # ── Always On AG ──────────────────────────────────────────────────────────────
 ag_name:             "SQL-AG"
@@ -31,10 +31,10 @@ ag_listener_name:    "sql-ag-listener"
 ag_listener_ip:      "192.168.10.50"
 ag_listener_port:    1433
 ag_endpoint_port:    5022
-ag_primary:          "sql-01"
-ag_secondary:        "sql-02"
+ag_primary:          "server1"
+ag_secondary:        "server2"
 
 # ── Witness ───────────────────────────────────────────────────────────────────
 witness_share_name:  "SQLWitness"
 witness_share_path:  "C:\\SQLWitness"
-witness_ip:          "192.168.10.30"
+witness_ip:          "192.168.100.13"

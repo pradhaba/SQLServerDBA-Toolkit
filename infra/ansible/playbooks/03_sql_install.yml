@@ -37,7 +37,7 @@
     - name: Copy SQL Server 2022 ISO to VM
       ansible.windows.win_copy:
         src: "{{ sql_iso_path }}"
-        dest: "C:\\SQLSetup\\SQL2022.iso"
+        dest: "E:\\SQLSetup\\SQL2022.iso"
         remote_src: false
 
     - name: Mount SQL ISO
